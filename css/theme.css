@@ -1,0 +1,60 @@
+/* =========================================================
+   THEME.CSS — le fichier pour personnaliser ton journal 💗
+   ---------------------------------------------------------
+   Change les valeurs ci-dessous, enregistre, recharge la page.
+   Les couleurs s'écrivent en code hexadécimal (#RRVVBB).
+   Astuce : cherche « color picker » sur Google pour trouver un code.
+   ========================================================= */
+
+/* ---------- 1. Polices ----------
+   Pour en changer : choisis une police sur fonts.google.com,
+   ajoute-la dans le lien <link> de index.html, puis écris son nom ici. */
+:root {
+  --police-titres: 'Playfair Display', Georgia, serif;   /* grands titres */
+  --police-script: 'Dancing Script', cursive;            /* le nom du journal, petits mots */
+  --police-texte:  'Nunito', system-ui, sans-serif;      /* boutons, menus */
+
+  /* Arrondis (plus grand = plus doux) */
+  --arrondi:        20px;
+  --arrondi-grand:  28px;
+}
+
+/* ---------- 2. Ambiances ----------
+   Chaque bloc est une ambiance. Pour en créer une nouvelle :
+   1) copie un bloc entier, change le nom entre guillemets et les couleurs
+   2) ajoute-la dans la liste AMBIANCES de js/config.js            */
+
+/* Rose poudré (par défaut) */
+:root, [data-ambiance="rose"] {
+  --fond:          #FFF5F8;  /* fond de la page */
+  --carte:         #FFFFFF;  /* cartes, menu */
+  --papier:        #FFFFFF;  /* la page où tu écris */
+  --doux:          #FDE4EE;  /* surbrillances légères */
+  --bordure:       #F6D3E1;  /* traits fins */
+  --lignes:        #FBE3EC;  /* lignes du papier */
+  --marge:         #F7B8CF;  /* trait de marge du papier */
+  --texte:         #4A2340;  /* texte principal */
+  --texte-doux:    #85566F;  /* texte secondaire */
+  --ombre:         rgba(184, 51, 106, .10);
+}
+
+/* Lavande */
+[data-ambiance="lavande"] {
+  --fond: #F6F1FB; --carte: #FFFFFF; --papier: #FFFFFF; --doux: #ECE1F7;
+  --bordure: #E1D2F0; --lignes: #EDE3F7; --marge: #CDB4EA;
+  --texte: #3E2A55; --texte-doux: #6E5A86; --ombre: rgba(110, 70, 160, .10);
+}
+
+/* Pêche */
+[data-ambiance="peche"] {
+  --fond: #FFF4EE; --carte: #FFFFFF; --papier: #FFFFFF; --doux: #FDE3D6;
+  --bordure: #F6D5C4; --lignes: #FBE6DA; --marge: #F4B89C;
+  --texte: #4D2C24; --texte-doux: #85594B; --ombre: rgba(194, 65, 12, .09);
+}
+
+/* Nuit rose (sombre) */
+[data-ambiance="nuit"] {
+  --fond: #22131F; --carte: #2E1A2A; --papier: #34202F; --doux: #43263D;
+  --bordure: #4A2C44; --lignes: #43293E; --marge: #7A3E62;
+  --texte: #FBE3EC; --texte-doux: #D3A9BF; --ombre: rgba(0, 0, 0, .35);
+}
