@@ -21,7 +21,7 @@ Version 1 : tes pages sont enregistrées **dans le navigateur de l'appareil** qu
 3. Sur la page du dépôt, clique sur **uploading an existing file**, puis glisse **tout le contenu** du dossier `mon-journal` (les fichiers et les dossiers `css` et `js`). Clique sur **Commit changes**.
 4. Va dans **Settings → Pages**. Dans *Branch*, choisis `main` et `/ (root)`, puis **Save**.
 5. Attends 1 à 2 minutes : ton site est en ligne à l'adresse
-   `https://TON-PSEUDO.github.io/journal-safsaf/`
+   `https://labriom.github.io/journal-safsaf/`
 
 > 🔒 Le code est public, mais **tes notes ne le sont pas** : elles restent dans ton navigateur et ne sont jamais envoyées sur GitHub.
 
