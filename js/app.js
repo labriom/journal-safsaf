@@ -75,7 +75,7 @@ function aller(v) {
 $$('[data-vue]').forEach((b) => b.addEventListener('click', () => { validerNote(); aller(b.dataset.vue); }));
 window.addEventListener('hashchange', () => { const v = location.hash.slice(1); if (v && v !== vue) aller(v); });
 
-function toutRedessiner() { appliquer(); dessinerNotes(); if (vue === 'calendrier') dessinerCal(); if (vue === 'perso') dessinerPerso(); }
+function toutRedessiner() { appliquer(); dessinerNotes(); dessinerDecor(); if (vue === 'calendrier') dessinerCal(); if (vue === 'perso') dessinerPerso(); }
 
 /* ================= JOURNAL ================= */
 let noteSel = null, recherche = '', enCours = null, minuteur = null;
@@ -165,7 +165,7 @@ $('#supprimerNote').onclick = async () => {
 $('#outils').addEventListener('mousedown', (e) => { if (e.target.closest('button')) e.preventDefault(); });
 $('#outils').addEventListener('click', (e) => {
   const b = e.target.closest('button'); if (!b) return;
-  if (b.id === 'stickers') { ouvrirStickers(); return; }
+  if (b.id === 'stickers') { stCible = 'page'; ouvrirStickers(); return; }
   const t = $('#noteTexte'); if (document.activeElement !== t) t.focus();
   if (b.dataset.cmd) document.execCommand(b.dataset.cmd, false, null);
   else if (b.dataset.bloc) { const cur = (document.queryCommandValue('formatBlock') || '').toLowerCase(); document.execCommand('formatBlock', false, cur === b.dataset.bloc ? 'div' : b.dataset.bloc); }
@@ -184,7 +184,8 @@ $('#noteTexte').addEventListener('click', (e) => {
 });
 
 /* ================= STICKERS ================= */
-let stSel = null, stTirage = false;
+let stSel = null, stTirage = false, stCible = 'page';
+const poser = (ref) => (stCible === 'decor' ? ajouterDecor(ref) : ajouterSticker(ref));
 const bibli = () => (Stockage.get('mes-stickers') || { id: 'mes-stickers', type: 'stickers', liste: [] });
 function contenuSticker(ref) {
   if (typeof ref !== 'string') return '';
@@ -262,10 +263,10 @@ document.addEventListener('pointerdown', (e) => {
   if (stSel && !e.target.closest('.sticker') && !e.target.closest('#fenStickers')) { stSel = null; $$('#calque .sticker.sel').forEach((x) => x.classList.remove('sel')); }
 });
 document.addEventListener('keydown', (e) => {
-  if (!stSel || (e.key !== 'Delete' && e.key !== 'Backspace')) return;
+  if ((!stSel && !decoSel) || (e.key !== 'Delete' && e.key !== 'Backspace')) return;
   const a = document.activeElement;
   if (a && (a.isContentEditable || /INPUT|TEXTAREA|SELECT/.test(a.tagName))) return;
-  e.preventDefault(); retirerSticker(stSel);
+  e.preventDefault(); if (decoSel && decoMode) retirerDecor(decoSel); else if (stSel) retirerSticker(stSel);
 });
 
 // La planche de stickers
@@ -414,7 +415,7 @@ $('#fenStickers').addEventListener('click', async (e) => {
     return;
   }
   const t = e.target.closest('[data-ref]'); if (!t) return;
-  fermerStickers(); ajouterSticker(t.dataset.ref);
+  fermerStickers(); poser(t.dataset.ref);
 });
 async function reduireImage(file) {
   const url = URL.createObjectURL(file);
@@ -446,10 +447,79 @@ $('#fenStickers').addEventListener('change', async (e) => {
     const data = await reduireImage(f);
     const b = bibli(), im = { id: nouvelId('i'), data };
     Stockage.enregistrer(Object.assign({}, b, { liste: [...b.liste, im] }));
-    fermerStickers(); ajouterSticker('u:' + im.id);
+    fermerStickers(); poser('u:' + im.id);
     message('Ton image est devenue un sticker !');
   } catch (_) { message('Impossible de lire cette image'); }
 });
+
+/* ================= DÉCOR : stickers partout sur l'écran ================= */
+// Une décoration pour l'ordinateur et une pour le téléphone (les écrans sont trop différents).
+let decoMode = false, decoSel = null, decoTirage = false;
+const ecran = () => (innerWidth < 820 ? 'telephone' : 'ordinateur');
+const decor = () => Stockage.get('decor') || { id: 'decor', type: 'decor', ordinateur: [], telephone: [] };
+function sauverDecor(liste) { Stockage.enregistrer(Object.assign({}, decor(), { [ecran()]: liste })); dessinerDecor(); }
+function dessinerDecor() {
+  if (decoTirage) return;
+  const c = $('#decor'); c.classList.toggle('actif', decoMode);
+  c.innerHTML = (decor()[ecran()] || []).map((st) => {
+    const h = contenuSticker(st.s); if (!h) return '';
+    return `<div class="sticker ${decoMode && st.id === decoSel ? 'sel' : ''}" data-id="${esc(st.id)}" style="left:${+st.x}%;top:${+st.y}%;width:${+st.w}px;--r:${+st.r || 0}deg">${h}<button class="st-btn st-suppr" aria-label="Retirer le sticker">×</button><span class="st-btn st-tourner" title="Agrandir ou tourner">↻</span></div>`;
+  }).join('');
+  $('#decoBarre').hidden = !decoMode;
+  document.body.classList.toggle('en-decoration', decoMode);
+}
+function ajouterDecor(ref) {
+  const st = { id: nouvelId('d'), s: ref, x: 25 + Math.random() * 50, y: 25 + Math.random() * 45, w: ecran() === 'telephone' ? 84 : 120, r: Math.round(Math.random() * 30 - 15) };
+  decoSel = st.id; sauverDecor([...(decor()[ecran()] || []), st]);
+}
+function retirerDecor(id) { if (decoSel === id) decoSel = null; sauverDecor((decor()[ecran()] || []).filter((x) => x.id !== id)); }
+function modeDecor(on) { validerNote(); decoMode = on; decoSel = null; dessinerDecor(); if (on) message('Mode décoration : ajoute et déplace tes stickers où tu veux'); }
+const calqueDecor = $('#decor');
+calqueDecor.addEventListener('click', (e) => { const b = e.target.closest('.st-suppr'); if (b && decoMode) retirerDecor(b.closest('.sticker').dataset.id); });
+calqueDecor.addEventListener('pointerdown', (e) => {
+  if (!decoMode) return;
+  const el = e.target.closest('.sticker'); if (!el || e.target.closest('.st-suppr')) return;
+  e.preventDefault(); e.stopPropagation();
+  const st = (decor()[ecran()] || []).find((x) => x.id === el.dataset.id); if (!st) return;
+  decoSel = st.id; $$('#decor .sticker').forEach((x) => x.classList.toggle('sel', x === el));
+  const mode = e.target.closest('.st-tourner') ? 'tourner' : 'bouger';
+  const r = el.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2, sx = e.clientX, sy = e.clientY;
+  const d0 = Math.hypot(sx - cx, sy - cy) || 1, a0 = Math.atan2(sy - cy, sx - cx);
+  const cur = Object.assign({}, st); let bouge = false;
+  try { el.setPointerCapture(e.pointerId); } catch (_) {}
+  const mv = (m) => {
+    if (!bouge && Math.hypot(m.clientX - sx, m.clientY - sy) < 3) return;
+    if (!bouge) { bouge = true; decoTirage = true; el.classList.add('tire'); }
+    if (mode === 'bouger') {
+      cur.x = borne(st.x + (m.clientX - sx) / innerWidth * 100, 0, 100);
+      cur.y = borne(st.y + (m.clientY - sy) / innerHeight * 100, 0, 100);
+      el.style.left = cur.x + '%'; el.style.top = cur.y + '%';
+    } else {
+      const d = Math.hypot(m.clientX - cx, m.clientY - cy), a = Math.atan2(m.clientY - cy, m.clientX - cx);
+      cur.w = Math.round(borne(st.w * d / d0, 24, 520));
+      cur.r = Math.round(((st.r || 0) + (a - a0) * 180 / Math.PI) % 360);
+      el.style.width = cur.w + 'px'; el.style.setProperty('--r', cur.r + 'deg');
+    }
+  };
+  const fin = () => {
+    el.removeEventListener('pointermove', mv); el.removeEventListener('pointerup', fin); el.removeEventListener('pointercancel', fin);
+    el.classList.remove('tire'); decoTirage = false;
+    if (bouge) sauverDecor([...(decor()[ecran()] || []).filter((x) => x.id !== cur.id), cur]);
+  };
+  el.addEventListener('pointermove', mv); el.addEventListener('pointerup', fin); el.addEventListener('pointercancel', fin);
+});
+document.addEventListener('pointerdown', (e) => {
+  if (decoSel && !e.target.closest('#decor .sticker') && !e.target.closest('#decoBarre') && !e.target.closest('#fenStickers')) { decoSel = null; $$('#decor .sticker.sel').forEach((x) => x.classList.remove('sel')); }
+});
+$$('[data-decorer]').forEach((b) => b.addEventListener('click', () => modeDecor(true)));
+$('#decoAjouter').onclick = () => { stCible = 'decor'; ouvrirStickers(); };
+$('#decoFini').onclick = () => modeDecor(false);
+$('#decoVider').onclick = async () => {
+  if (!(decor()[ecran()] || []).length) return;
+  if (await demander('Retirer toute la décoration ?', 'Les stickers posés sur l’écran (' + (ecran() === 'telephone' ? 'téléphone' : 'ordinateur') + ') seront retirés. Tes pages ne changent pas.')) sauverDecor([]);
+};
+let tDecor = null, ecranAvant = ecran();
+window.addEventListener('resize', () => { clearTimeout(tDecor); tDecor = setTimeout(() => { if (ecran() !== ecranAvant) { ecranAvant = ecran(); decoSel = null; } dessinerDecor(); }, 150); });
 
 /* ================= CALENDRIER ================= */
 let calVue = innerWidth < 820 ? 'jour' : 'semaine';
@@ -664,7 +734,7 @@ $('#planSuppr').onclick = async () => {
   if (!planEdit) return; const p = planEdit; fermerPlanning();
   if (await demander('Supprimer ce planning ?', '« ' + (p.titre || 'Sans titre') + ' » sera supprimé.')) { Stockage.supprimer(p.id); dessinerCal(); message('Planning supprimé'); }
 };
-document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { if ($('#fenStickers').classList.contains('ouverte')) fermerStickers(); else if ($('#fenPlanning').classList.contains('ouverte')) fermerPlanning(); else if ($('#fenConfirm').classList.contains('ouverte')) $('#confNon').click(); } });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { if (decoMode && !$('#fenStickers').classList.contains('ouverte')) modeDecor(false); else if ($('#fenStickers').classList.contains('ouverte')) fermerStickers(); else if ($('#fenPlanning').classList.contains('ouverte')) fermerPlanning(); else if ($('#fenConfirm').classList.contains('ouverte')) $('#confNon').click(); } });
 
 /* ================= PERSONNALISER ================= */
 let tNom = null;
@@ -704,7 +774,7 @@ $('#importer').onchange = async (e) => {
     const el = Array.isArray(d.elements) ? d.elements : [];
     if (!(await demander('Restaurer cette sauvegarde ?', el.length + ' élément(s) seront ajoutés ou mis à jour.'))) return;
     let n = 0;
-    el.forEach((x) => { if (x && typeof x.id === 'string' && ['note', 'planning', 'reglages', 'stickers'].includes(x.type)) { Stockage.enregistrer(x); n++; } });
+    el.forEach((x) => { if (x && typeof x.id === 'string' && ['note', 'planning', 'reglages', 'stickers', 'decor'].includes(x.type)) { Stockage.enregistrer(x); n++; } });
     toutRedessiner(); message(n + ' élément(s) restauré(s)');
   } catch (_) { message('Ce fichier n\'est pas une sauvegarde valide'); }
 };
@@ -713,6 +783,7 @@ $('#importer').onchange = async (e) => {
 Stockage.init(toutRedessiner);
 appliquer();
 dessinerNotes();
+dessinerDecor();
 aller(location.hash.slice(1) || 'journal');
 window.addEventListener('beforeunload', validerNote);
 document.addEventListener('visibilitychange', () => { if (document.hidden) validerNote(); });
