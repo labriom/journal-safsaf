@@ -89,10 +89,14 @@
             <button data-surligne="#FBD0E0" aria-label="Surligner en rose"><span class="pastille" style="background:#FBD0E0"></span></button>
             <button data-surligne="#FFF1A8" aria-label="Surligner en jaune"><span class="pastille" style="background:#FFF1A8"></span></button>
             <button id="mot-script" aria-label="Écriture manuscrite"><span class="script">a</span></button>
+            <button id="stickers" class="outil-stickers" aria-label="Ajouter un sticker"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 2.6 5.6 6 .7-4.5 4.1 1.2 6L12 16.4 6.7 19.4l1.2-6L3.4 9.3l6-.7z"/></svg><span>Stickers</span></button>
             <button data-cmd="removeFormat" aria-label="Effacer la mise en forme"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7V4h16v3M9 20h6M12 4v16M3 21 21 3"/></svg></button>
           </div>
-          <div class="papier-zone">
-            <div class="papier" id="noteTexte" contenteditable="true" spellcheck="true" aria-label="Texte de la page"></div>
+          <div class="papier-zone" id="papierZone">
+            <div class="feuille" id="feuille">
+              <div class="papier" id="noteTexte" contenteditable="true" spellcheck="true" aria-label="Texte de la page"></div>
+              <div class="calque" id="calque"></div>
+            </div>
           </div>
         </div>
       </div>
@@ -192,6 +196,20 @@
   </form>
 </div>
 
+<!-- Fenêtre stickers -->
+<div class="fenetre" id="fenStickers">
+  <div class="dialogue large" role="dialog" aria-labelledby="stTitre">
+    <div class="st-entete">
+      <h3 id="stTitre">Stickers</h3>
+      <button class="icone" id="stFermer" aria-label="Fermer"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+    </div>
+    <p class="aide">Touche un sticker pour le poser sur ta page. Ensuite, fais-le glisser pour le déplacer, et utilise la poignée ↻ pour l'agrandir ou le tourner.</p>
+    <div class="planche" id="planche"></div>
+    <h4 class="st-sous">Mes images</h4>
+    <div class="planche" id="planchePerso"></div>
+  </div>
+</div>
+
 <!-- Fenêtre confirmation -->
 <div class="fenetre" id="fenConfirm">
   <div class="dialogue">
@@ -204,6 +222,7 @@
 <div class="message" id="message" role="status"></div>
 
 <script src="js/config.js"></script>
+<script src="js/stickers.js"></script>
 <script src="js/storage.js"></script>
 <script src="js/app.js"></script>
 </body>

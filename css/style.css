@@ -245,3 +245,34 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
   .perso { padding: 18px 16px 30px; }
   .deux { grid-template-columns: 1fr; }
 }
+
+/* ---------- STICKERS ---------- */
+.feuille { position: relative; min-height: 100%; display: flex; flex-direction: column; }
+.feuille .papier { flex: 1; min-height: 0; }
+.calque { position: absolute; inset: 0; pointer-events: none; z-index: 2; overflow: hidden; border-radius: var(--arrondi-grand); }
+.sticker { position: absolute; pointer-events: auto; touch-action: none; transform: translate(-50%, -50%) rotate(var(--r, 0deg)); cursor: grab; user-select: none; -webkit-user-select: none; }
+.sticker > svg, .sticker > img, .planche .tuile svg, .planche .tuile img {
+  display: block; width: 100%; height: auto; pointer-events: none;
+  filter: drop-shadow(2px 0 0 #fff) drop-shadow(-2px 0 0 #fff) drop-shadow(0 2px 0 #fff) drop-shadow(0 -2px 0 #fff) drop-shadow(0 3px 5px rgba(74, 35, 64, .22));
+}
+.sticker.sel { outline: 2px dashed var(--accent); outline-offset: 6px; border-radius: 10px; }
+.sticker.tire { cursor: grabbing; }
+.st-btn { position: absolute; width: 34px; height: 34px; border-radius: 50%; background: var(--accent); color: #fff; border: 3px solid #fff; display: none; place-items: center; font-size: 17px; font-weight: 800; line-height: 1; box-shadow: 0 3px 8px rgba(0, 0, 0, .2); padding: 0; }
+.sticker.sel .st-btn { display: grid; }
+.st-suppr { top: -22px; right: -22px; cursor: pointer; }
+.st-tourner { bottom: -22px; right: -22px; cursor: nwse-resize; touch-action: none; }
+.outils .outil-stickers { gap: 6px; padding: 0 12px; color: var(--accent); font-weight: 800; font-size: 14px; display: flex; align-items: center; background: var(--doux); }
+.dialogue.large { width: min(600px, 100%); }
+.st-entete { display: flex; align-items: center; justify-content: space-between; }
+.st-sous { margin: 4px 0 0; font-size: 14px; font-weight: 800; color: var(--texte-doux); }
+.planche { display: grid; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); gap: 10px; }
+.planche .tuile { position: relative; aspect-ratio: 1; border: 0; border-radius: 18px; background: var(--fond); display: grid; place-items: center; padding: 12px; cursor: pointer; transition: transform .15s; }
+.planche .tuile:hover { transform: scale(1.06) rotate(-3deg); background: var(--doux); }
+.planche .tuile img { max-height: 100%; object-fit: contain; }
+.planche .ajout { border: 2px dashed var(--bordure); color: var(--accent); font-weight: 800; font-size: 12px; text-align: center; flex-direction: column; gap: 4px; display: flex; align-items: center; justify-content: center; }
+.planche .ajout svg { width: 24px; height: 24px; filter: none; }
+.planche .retirer { position: absolute; top: -6px; right: -6px; width: 26px; height: 26px; border-radius: 50%; border: 2px solid #fff; background: var(--texte); color: var(--fond); font-size: 14px; line-height: 1; display: grid; place-items: center; padding: 0; }
+@media (max-width: 820px) {
+  .outils .outil-stickers span { display: none; }
+  .calque { border-radius: 20px; }
+}

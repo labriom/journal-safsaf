@@ -112,6 +112,8 @@ function dessinerEditeur(forcer) {
   }
   $('#noteDate').value = n.date || '';
   $('#epingler').classList.toggle('on', !!n.epingle);
+  if (!meme || forcer) stSel = null;
+  dessinerStickers();
   $('#humeurs').innerHTML = '<span class="lbl">Humeur</span>' + C.HUMEURS.map((h) => `<button data-h="${esc(h)}" class="${n.humeur === h ? 'on' : ''}">${esc(h)}</button>`).join('');
 }
 function choisirNote(id) { validerNote(); noteSel = id; dessinerNotes(); dessinerEditeur(true); $('#enregistre').textContent = ''; }
@@ -163,6 +165,7 @@ $('#supprimerNote').onclick = async () => {
 $('#outils').addEventListener('mousedown', (e) => { if (e.target.closest('button')) e.preventDefault(); });
 $('#outils').addEventListener('click', (e) => {
   const b = e.target.closest('button'); if (!b) return;
+  if (b.id === 'stickers') { ouvrirStickers(); return; }
   const t = $('#noteTexte'); if (document.activeElement !== t) t.focus();
   if (b.dataset.cmd) document.execCommand(b.dataset.cmd, false, null);
   else if (b.dataset.bloc) { const cur = (document.queryCommandValue('formatBlock') || '').toLowerCase(); document.execCommand('formatBlock', false, cur === b.dataset.bloc ? 'div' : b.dataset.bloc); }
@@ -178,6 +181,140 @@ $('#outils').addEventListener('click', (e) => {
 $('#noteTexte').addEventListener('click', (e) => {
   const li = e.target.closest('ul.taches > li'); if (!li) return;
   if (e.clientX - li.getBoundingClientRect().left < 28) { li.classList.toggle('fait'); noteModifiee(); }
+});
+
+/* ================= STICKERS ================= */
+let stSel = null, stTirage = false;
+const bibli = () => (Stockage.get('mes-stickers') || { id: 'mes-stickers', type: 'stickers', liste: [] });
+function contenuSticker(ref) {
+  if (typeof ref !== 'string') return '';
+  if (ref.startsWith('u:')) {
+    const im = bibli().liste.find((x) => x.id === ref.slice(2));
+    return im && /^data:image\//.test(im.data) ? `<img src="${esc(im.data)}" alt="">` : '';
+  }
+  const st = (window.STICKERS || []).find((x) => x.id === ref);
+  return st ? st.svg : '';
+}
+function dessinerStickers() {
+  if (stTirage) return;
+  const n = noteSel && Stockage.get(noteSel), cal = $('#calque');
+  if (!n) { cal.innerHTML = ''; return; }
+  cal.innerHTML = (n.stickers || []).map((st) => {
+    const c = contenuSticker(st.s); if (!c) return '';
+    return `<div class="sticker ${st.id === stSel ? 'sel' : ''}" data-id="${esc(st.id)}" style="left:${+st.x}%;top:${+st.y}px;width:${+st.w}%;--r:${+st.r || 0}deg">${c}<button class="st-btn st-suppr" aria-label="Retirer le sticker">×</button><span class="st-btn st-tourner" title="Agrandir ou tourner">↻</span></div>`;
+  }).join('');
+}
+function sauverStickers(liste) {
+  const n = Stockage.get(noteSel); if (!n) return;
+  validerNote();
+  Stockage.enregistrer(Object.assign({}, Stockage.get(noteSel) || n, { stickers: liste, modifie: Date.now() }));
+  dessinerListe(); dessinerStickers();
+}
+function ajouterSticker(ref) {
+  const n = Stockage.get(noteSel); if (!n) return;
+  const zone = $('#papierZone'), feuille = $('#feuille');
+  const zr = zone.getBoundingClientRect(), fr = feuille.getBoundingClientRect();
+  const y = Math.max(40, zr.top + Math.min(zone.clientHeight, innerHeight - zr.top) / 2 - fr.top);
+  const st = { id: nouvelId('s'), s: ref, x: 50 + (Math.random() * 30 - 15), y: Math.round(y), w: innerWidth < 820 ? 24 : 14, r: Math.round(Math.random() * 24 - 12) };
+  stSel = st.id;
+  sauverStickers([...(n.stickers || []), st]);
+}
+function retirerSticker(id) {
+  const n = Stockage.get(noteSel); if (!n) return;
+  if (stSel === id) stSel = null;
+  sauverStickers((n.stickers || []).filter((s) => s.id !== id));
+}
+const calque = $('#calque');
+calque.addEventListener('click', (e) => { const b = e.target.closest('.st-suppr'); if (b) retirerSticker(b.closest('.sticker').dataset.id); });
+calque.addEventListener('pointerdown', (e) => {
+  const el = e.target.closest('.sticker'); if (!el || e.target.closest('.st-suppr')) return;
+  e.preventDefault(); e.stopPropagation();
+  const n = Stockage.get(noteSel); const st = n && (n.stickers || []).find((s) => s.id === el.dataset.id); if (!st) return;
+  stSel = st.id; $$('#calque .sticker').forEach((x) => x.classList.toggle('sel', x === el));
+  const mode = e.target.closest('.st-tourner') ? 'tourner' : 'bouger';
+  const cr = calque.getBoundingClientRect(), r = el.getBoundingClientRect();
+  const cx = r.left + r.width / 2, cy = r.top + r.height / 2, sx = e.clientX, sy = e.clientY;
+  const d0 = Math.hypot(sx - cx, sy - cy) || 1, a0 = Math.atan2(sy - cy, sx - cx);
+  const cur = Object.assign({}, st); let bouge = false;
+  try { el.setPointerCapture(e.pointerId); } catch (_) {}
+  const mv = (m) => {
+    if (!bouge && Math.hypot(m.clientX - sx, m.clientY - sy) < 3) return;
+    if (!bouge) { bouge = true; stTirage = true; el.classList.add('tire'); }
+    if (mode === 'bouger') {
+      cur.x = borne(st.x + (m.clientX - sx) / cr.width * 100, 0, 100);
+      cur.y = Math.round(borne(st.y + (m.clientY - sy), 0, cr.height));
+      el.style.left = cur.x + '%'; el.style.top = cur.y + 'px';
+    } else {
+      const d = Math.hypot(m.clientX - cx, m.clientY - cy), a = Math.atan2(m.clientY - cy, m.clientX - cx);
+      cur.w = borne(st.w * d / d0, 5, 90);
+      cur.r = Math.round(((st.r || 0) + (a - a0) * 180 / Math.PI) % 360);
+      el.style.width = cur.w + '%'; el.style.setProperty('--r', cur.r + 'deg');
+    }
+  };
+  const fin = () => {
+    el.removeEventListener('pointermove', mv); el.removeEventListener('pointerup', fin); el.removeEventListener('pointercancel', fin);
+    el.classList.remove('tire'); stTirage = false;
+    if (bouge) { const autres = (Stockage.get(noteSel).stickers || []).filter((s) => s.id !== cur.id); sauverStickers([...autres, cur]); }
+  };
+  el.addEventListener('pointermove', mv); el.addEventListener('pointerup', fin); el.addEventListener('pointercancel', fin);
+});
+document.addEventListener('pointerdown', (e) => {
+  if (stSel && !e.target.closest('.sticker') && !e.target.closest('#fenStickers')) { stSel = null; $$('#calque .sticker.sel').forEach((x) => x.classList.remove('sel')); }
+});
+document.addEventListener('keydown', (e) => {
+  if (!stSel || (e.key !== 'Delete' && e.key !== 'Backspace')) return;
+  const a = document.activeElement;
+  if (a && (a.isContentEditable || /INPUT|TEXTAREA|SELECT/.test(a.tagName))) return;
+  e.preventDefault(); retirerSticker(stSel);
+});
+
+// La planche de stickers
+function ouvrirStickers() {
+  $('#planche').innerHTML = (window.STICKERS || []).map((s) => `<button class="tuile" data-ref="${esc(s.id)}" aria-label="${esc(s.nom)}" title="${esc(s.nom)}">${s.svg}</button>`).join('');
+  $('#planchePerso').innerHTML = bibli().liste.map((im) => /^data:image\//.test(im.data) ? `<div style="position:relative"><button class="tuile" data-ref="u:${esc(im.id)}" aria-label="Mon image"><img src="${esc(im.data)}" alt=""></button><button class="retirer" data-retirer="${esc(im.id)}" aria-label="Supprimer cette image">×</button></div>` : '').join('')
+    + `<label class="tuile ajout"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Ajouter mon image<input type="file" id="stImage" accept="image/*" hidden></label>`;
+  $('#fenStickers').classList.add('ouverte');
+}
+const fermerStickers = () => $('#fenStickers').classList.remove('ouverte');
+$('#stFermer').onclick = fermerStickers;
+$('#fenStickers').addEventListener('pointerdown', (e) => { if (e.target.id === 'fenStickers') fermerStickers(); });
+$('#fenStickers').addEventListener('click', async (e) => {
+  const del = e.target.closest('[data-retirer]');
+  if (del) {
+    e.stopPropagation();
+    if (await demander('Supprimer cette image ?', 'Elle disparaîtra aussi des pages où tu l\'as collée.')) {
+      const b = bibli(); Stockage.enregistrer(Object.assign({}, b, { liste: b.liste.filter((x) => x.id !== del.dataset.retirer) }));
+      ouvrirStickers(); dessinerStickers();
+    } else ouvrirStickers();
+    return;
+  }
+  const t = e.target.closest('[data-ref]'); if (!t) return;
+  fermerStickers(); ajouterSticker(t.dataset.ref);
+});
+async function reduireImage(file) {
+  const url = URL.createObjectURL(file);
+  try {
+    const img = new Image();
+    await new Promise((ok, ko) => { img.onload = ok; img.onerror = ko; img.src = url; });
+    const k = Math.min(1, 360 / Math.max(img.width, img.height));
+    const c = document.createElement('canvas');
+    c.width = Math.max(1, Math.round(img.width * k)); c.height = Math.max(1, Math.round(img.height * k));
+    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+    let d = c.toDataURL('image/webp', 0.85);
+    if (!d.startsWith('data:image/webp')) d = c.toDataURL('image/png');
+    return d;
+  } finally { URL.revokeObjectURL(url); }
+}
+$('#fenStickers').addEventListener('change', async (e) => {
+  if (e.target.id !== 'stImage') return;
+  const f = e.target.files[0]; if (!f) return;
+  try {
+    const data = await reduireImage(f);
+    const b = bibli(), im = { id: nouvelId('i'), data };
+    Stockage.enregistrer(Object.assign({}, b, { liste: [...b.liste, im] }));
+    fermerStickers(); ajouterSticker('u:' + im.id);
+    message('Ton image est devenue un sticker !');
+  } catch (_) { message('Impossible de lire cette image'); }
 });
 
 /* ================= CALENDRIER ================= */
@@ -393,7 +530,7 @@ $('#planSuppr').onclick = async () => {
   if (!planEdit) return; const p = planEdit; fermerPlanning();
   if (await demander('Supprimer ce planning ?', '« ' + (p.titre || 'Sans titre') + ' » sera supprimé.')) { Stockage.supprimer(p.id); dessinerCal(); message('Planning supprimé'); }
 };
-document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { if ($('#fenPlanning').classList.contains('ouverte')) fermerPlanning(); else if ($('#fenConfirm').classList.contains('ouverte')) $('#confNon').click(); } });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { if ($('#fenStickers').classList.contains('ouverte')) fermerStickers(); else if ($('#fenPlanning').classList.contains('ouverte')) fermerPlanning(); else if ($('#fenConfirm').classList.contains('ouverte')) $('#confNon').click(); } });
 
 /* ================= PERSONNALISER ================= */
 let tNom = null;
@@ -433,7 +570,7 @@ $('#importer').onchange = async (e) => {
     const el = Array.isArray(d.elements) ? d.elements : [];
     if (!(await demander('Restaurer cette sauvegarde ?', el.length + ' élément(s) seront ajoutés ou mis à jour.'))) return;
     let n = 0;
-    el.forEach((x) => { if (x && typeof x.id === 'string' && ['note', 'planning', 'reglages'].includes(x.type)) { Stockage.enregistrer(x); n++; } });
+    el.forEach((x) => { if (x && typeof x.id === 'string' && ['note', 'planning', 'reglages', 'stickers'].includes(x.type)) { Stockage.enregistrer(x); n++; } });
     toutRedessiner(); message(n + ' élément(s) restauré(s)');
   } catch (_) { message('Ce fichier n\'est pas une sauvegarde valide'); }
 };
