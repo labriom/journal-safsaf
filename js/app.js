@@ -270,11 +270,136 @@ document.addEventListener('keydown', (e) => {
 
 // La planche de stickers
 function ouvrirStickers() {
-  $('#planche').innerHTML = (window.STICKERS || []).map((s) => `<button class="tuile" data-ref="${esc(s.id)}" aria-label="${esc(s.nom)}" title="${esc(s.nom)}">${s.svg}</button>`).join('');
-  $('#planchePerso').innerHTML = bibli().liste.map((im) => /^data:image\//.test(im.data) ? `<div style="position:relative"><button class="tuile" data-ref="u:${esc(im.id)}" aria-label="Mon image"><img src="${esc(im.data)}" alt=""></button><button class="retirer" data-retirer="${esc(im.id)}" aria-label="Supprimer cette image">×</button></div>` : '').join('')
-    + `<label class="tuile ajout"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Ajouter mon image<input type="file" id="stImage" accept="image/*" hidden></label>`;
+  const cats = [];
+  (window.STICKERS || []).forEach((s) => { const c = s.cat || 'Stickers'; if (!cats.includes(c)) cats.push(c); });
+  $('#planches').innerHTML = cats.map((c) => `<h4 class="st-sous">${esc(c)}</h4><div class="planche">${(window.STICKERS || []).filter((s) => (s.cat || 'Stickers') === c).map((s) => `<button class="tuile" data-ref="${esc(s.id)}" aria-label="${esc(s.nom)}" title="${esc(s.nom)}">${s.svg}</button>`).join('')}</div>`).join('');
+  $('#planchePerso').innerHTML = `<label class="tuile ajout"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Ajouter une image<input type="file" id="stImage" accept="image/*" hidden></label>
+    <label class="tuile ajout"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3v12a3 3 0 1 0 3 3M18 3v12a3 3 0 1 1-3 3M6 15l12-6M18 15 6 9"/></svg>Découper une planche<input type="file" id="stPlanche" accept="image/*" hidden></label>`
+    + bibli().liste.map((im) => /^data:image\//.test(im.data) ? `<div style="position:relative"><button class="tuile" data-ref="u:${esc(im.id)}" aria-label="Mon image"><img src="${esc(im.data)}" alt=""></button><button class="retirer" data-retirer="${esc(im.id)}" aria-label="Supprimer cette image">×</button></div>` : '').join('');
+  $('#stChoix').hidden = false; $('#stDecoupe').hidden = true;
   $('#fenStickers').classList.add('ouverte');
 }
+
+/* ----- Découpe automatique d'une planche de stickers -----
+   Repère chaque dessin posé sur un fond clair (ou transparent),
+   le découpe et rend son contour transparent. */
+const estFond = (r, g, b, a, seuil) => a < 40 || (Math.min(r, g, b) > seuil && Math.max(r, g, b) - Math.min(r, g, b) < 26);
+async function chargerImage(file) {
+  const url = URL.createObjectURL(file);
+  try { const img = new Image(); await new Promise((ok, ko) => { img.onload = ok; img.onerror = ko; img.src = url; }); return img; }
+  finally { setTimeout(() => URL.revokeObjectURL(url), 1000); }
+}
+async function decouperPlanche(file) {
+  const img = await chargerImage(file);
+  // 1) image pleine taille (max 1800 px)
+  const k = Math.min(1, 1800 / Math.max(img.width, img.height));
+  const W = Math.round(img.width * k), Hh = Math.round(img.height * k);
+  const C = document.createElement('canvas'); C.width = W; C.height = Hh;
+  const cx = C.getContext('2d', { willReadFrequently: true }); cx.drawImage(img, 0, 0, W, Hh);
+  const D = cx.getImageData(0, 0, W, Hh).data;
+  // 2) petite version pour repérer les dessins
+  const ks = Math.min(1, 480 / Math.max(W, Hh)), w = Math.max(1, Math.round(W * ks)), h = Math.max(1, Math.round(Hh * ks));
+  const S = document.createElement('canvas'); S.width = w; S.height = h;
+  const sx = S.getContext('2d', { willReadFrequently: true }); sx.drawImage(C, 0, 0, w, h);
+  const d = sx.getImageData(0, 0, w, h).data;
+  let m = new Uint8Array(w * h);
+  for (let i = 0; i < w * h; i++) m[i] = estFond(d[i * 4], d[i * 4 + 1], d[i * 4 + 2], d[i * 4 + 3], 204) ? 0 : 1;
+  // épaissir un peu pour réunir les morceaux d'un même dessin
+  for (let pass = 0; pass < 1; pass++) {
+    const n2 = new Uint8Array(m);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const i = y * w + x; if (m[i]) continue;
+      if ((x > 0 && m[i - 1]) || (x < w - 1 && m[i + 1]) || (y > 0 && m[i - w]) || (y < h - 1 && m[i + w])) n2[i] = 1;
+    }
+    m = n2;
+  }
+  // 3) repérer les zones séparées
+  const lab = new Int32Array(w * h); let nb = 0; const zones = [];
+  for (let i = 0; i < w * h; i++) {
+    if (!m[i] || lab[i]) continue;
+    nb++; let x0 = w, y0 = h, x1 = 0, y1 = 0, aire = 0; const pile = [i]; lab[i] = nb;
+    while (pile.length) {
+      const j = pile.pop(), x = j % w, y = (j - x) / w; aire++;
+      if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
+      const v = [x > 0 ? j - 1 : -1, x < w - 1 ? j + 1 : -1, y > 0 ? j - w : -1, y < h - 1 ? j + w : -1];
+      for (const q of v) if (q >= 0 && m[q] && !lab[q]) { lab[q] = nb; pile.push(q); }
+    }
+    zones.push({ labels: [nb], x0, y0, x1, y1, aire });
+  }
+  let gardes = zones.filter((z) => z.aire > w * h * 0.0012 && (z.x1 - z.x0) > 6 && (z.y1 - z.y0) > 6);
+  // réunir les zones qui se chevauchent beaucoup (morceaux d'un même dessin)
+  let change = true;
+  while (change) {
+    change = false;
+    for (let a = 0; a < gardes.length && !change; a++) for (let b = a + 1; b < gardes.length && !change; b++) {
+      const A = gardes[a], B = gardes[b];
+      const ix = Math.max(0, Math.min(A.x1, B.x1) - Math.max(A.x0, B.x0)), iy = Math.max(0, Math.min(A.y1, B.y1) - Math.max(A.y0, B.y0));
+      const petit = Math.min((A.x1 - A.x0) * (A.y1 - A.y0), (B.x1 - B.x0) * (B.y1 - B.y0));
+      if (ix * iy > petit * 0.5) {
+        gardes[a] = { labels: A.labels.concat(B.labels), x0: Math.min(A.x0, B.x0), y0: Math.min(A.y0, B.y0), x1: Math.max(A.x1, B.x1), y1: Math.max(A.y1, B.y1), aire: A.aire + B.aire };
+        gardes.splice(b, 1); change = true;
+      }
+    }
+  }
+  gardes.sort((A, B) => (Math.abs(A.y0 - B.y0) > h * 0.05 ? A.y0 - B.y0 : A.x0 - B.x0));
+  // 4) découper chaque dessin en pleine taille et rendre le fond transparent
+  const res = [];
+  for (const z of gardes.slice(0, 80)) {
+    const set = new Set(z.labels);
+    const X0 = Math.max(0, Math.floor(z.x0 / ks) - 2), Y0 = Math.max(0, Math.floor(z.y0 / ks) - 2);
+    const X1 = Math.min(W - 1, Math.ceil((z.x1 + 1) / ks) + 2), Y1 = Math.min(Hh - 1, Math.ceil((z.y1 + 1) / ks) + 2);
+    const cw = X1 - X0 + 1, ch = Y1 - Y0 + 1;
+    const K = document.createElement('canvas'); K.width = cw; K.height = ch;
+    const kx = K.getContext('2d'); const out = kx.createImageData(cw, ch); const o = out.data;
+    for (let y = 0; y < ch; y++) for (let x = 0; x < cw; x++) {
+      const si = ((Y0 + y) * W + (X0 + x)) * 4, di = (y * cw + x) * 4;
+      const lx = Math.min(w - 1, Math.floor((X0 + x) * ks)), ly = Math.min(h - 1, Math.floor((Y0 + y) * ks));
+      const l = lab[ly * w + lx];
+      o[di] = D[si]; o[di + 1] = D[si + 1]; o[di + 2] = D[si + 2];
+      o[di + 3] = (l && !set.has(l)) ? 0 : D[si + 3];
+    }
+    // effacer le fond clair relié au bord (l'intérieur blanc du dessin est gardé)
+    const vu = new Uint8Array(cw * ch), pile = [];
+    const tente = (x, y) => { const i = y * cw + x; if (vu[i]) return; const p = i * 4; if (o[p + 3] < 40 || estFond(o[p], o[p + 1], o[p + 2], o[p + 3], 205)) { vu[i] = 1; pile.push(i); } };
+    for (let x = 0; x < cw; x++) { tente(x, 0); tente(x, ch - 1); }
+    for (let y = 0; y < ch; y++) { tente(0, y); tente(cw - 1, y); }
+    while (pile.length) {
+      const i = pile.pop(), x = i % cw, y = (i - x) / cw; o[i * 4 + 3] = 0;
+      if (x > 0) tente(x - 1, y); if (x < cw - 1) tente(x + 1, y); if (y > 0) tente(x, y - 1); if (y < ch - 1) tente(x, y + 1);
+    }
+    kx.putImageData(out, 0, 0);
+    // réduire à 380 px max
+    const r = Math.min(1, 380 / Math.max(cw, ch));
+    const F = document.createElement('canvas'); F.width = Math.max(1, Math.round(cw * r)); F.height = Math.max(1, Math.round(ch * r));
+    F.getContext('2d').drawImage(K, 0, 0, F.width, F.height);
+    let data = F.toDataURL('image/webp', 0.85);
+    if (!data.startsWith('data:image/webp')) data = F.toDataURL('image/png');
+    res.push(data);
+  }
+  return res;
+}
+let decoupes = [];
+function afficherDecoupe() {
+  const nbOk = decoupes.filter((x) => x.ok).length;
+  $('#stDecoupeInfo').textContent = decoupes.length
+    ? `J'ai trouvé ${decoupes.length} sticker${decoupes.length > 1 ? 's' : ''}. Touche ceux que tu ne veux pas garder, puis ajoute-les.`
+    : "Je n'ai trouvé aucun sticker. Essaie avec une image sur fond blanc ou transparent.";
+  $('#stDecoupeGrille').innerHTML = decoupes.map((x, i) => `<button class="tuile ${x.ok ? '' : 'off'}" data-dec="${i}" aria-pressed="${x.ok}"><img src="${x.data}" alt=""></button>`).join('');
+  $('#stDecoupeOk').textContent = nbOk ? `Ajouter ${nbOk} sticker${nbOk > 1 ? 's' : ''}` : 'Aucun sticker choisi';
+  $('#stDecoupeOk').disabled = !nbOk;
+}
+$('#stDecoupeGrille').addEventListener('click', (e) => { const b = e.target.closest('[data-dec]'); if (!b) return; const x = decoupes[+b.dataset.dec]; x.ok = !x.ok; afficherDecoupe(); });
+$('#stDecoupeAnnuler').onclick = () => { decoupes = []; ouvrirStickers(); };
+$('#stDecoupeOk').onclick = () => {
+  const choisis = decoupes.filter((x) => x.ok); if (!choisis.length) return;
+  const b = bibli();
+  const avant = JSON.stringify(Stockage.get('mes-stickers') || null);
+  Stockage.enregistrer(Object.assign({}, b, { liste: b.liste.concat(choisis.map((x) => ({ id: nouvelId('i'), data: x.data }))) }));
+  if (JSON.stringify(Stockage.get('mes-stickers') || null) === avant) return;
+  decoupes = []; ouvrirStickers();
+  message(choisis.length + ' stickers ajoutés à « Mes images » !');
+  setTimeout(() => { const el = $('#planchePerso'); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 50);
+};
 const fermerStickers = () => $('#fenStickers').classList.remove('ouverte');
 $('#stFermer').onclick = fermerStickers;
 $('#fenStickers').addEventListener('pointerdown', (e) => { if (e.target.id === 'fenStickers') fermerStickers(); });
@@ -306,6 +431,15 @@ async function reduireImage(file) {
   } finally { URL.revokeObjectURL(url); }
 }
 $('#fenStickers').addEventListener('change', async (e) => {
+  if (e.target.id === 'stPlanche') {
+    const f = e.target.files[0]; if (!f) return;
+    $('#stChoix').hidden = true; $('#stDecoupe').hidden = false;
+    $('#stDecoupeInfo').textContent = 'Je cherche les stickers dans ton image…'; $('#stDecoupeGrille').innerHTML = ''; $('#stDecoupeOk').disabled = true;
+    try { decoupes = (await decouperPlanche(f)).map((data) => ({ data, ok: true })); }
+    catch (_) { decoupes = []; }
+    afficherDecoupe();
+    return;
+  }
   if (e.target.id !== 'stImage') return;
   const f = e.target.files[0]; if (!f) return;
   try {

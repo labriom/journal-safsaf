@@ -10,7 +10,8 @@ Version 1 : tes pages sont enregistrées **dans le navigateur de l'appareil** qu
 | `index.html` | La structure des pages | Pour ajouter une police Google |
 | `css/theme.css` | **Couleurs, polices, arrondis, ambiances** | ✅ Oui, c'est fait pour |
 | `js/config.js` | **Listes de choix** : humeurs, catégories, couleurs, ambiances | ✅ Oui, c'est fait pour |
-| `js/stickers.js` | **La planche de stickers** (dessins SVG) | ✅ Oui, pour ajouter tes stickers |
+| `js/stickers.js` | Les stickers « mignons » (dessins SVG) | ✅ Oui, pour ajouter tes stickers |
+| `js/stickers-aquarelle.js` | La grande planche « aquarelle rose » (couleurs modifiables) | ✅ Oui |
 | `css/style.css` | La mise en page | Si tu es à l'aise |
 | `js/app.js` | Le fonctionnement | Plutôt non |
 | `js/storage.js` | L'enregistrement des données | Sera remplacé à l'étape 2 (synchronisation) |
@@ -37,7 +38,7 @@ Ouvre l'adresse dans ton navigateur, puis :
 - **Changer les couleurs d'une ambiance** : ouvre `css/theme.css`, modifie les codes couleur, enregistre.
 - **Créer une nouvelle ambiance** : copie un bloc `[data-ambiance="..."]` dans `theme.css`, renomme-le (par ex. `"menthe"`), change les couleurs, puis ajoute `{ id: 'menthe', nom: 'Menthe', apercu: '#EEF7F2' }` dans la liste `AMBIANCES` de `js/config.js`.
 - **Changer les humeurs ou les catégories du calendrier** : `js/config.js`.
-- **Ajouter des stickers** : directement dans le journal (bouton ⭐ Stickers → *Ajouter mon image*), ou pour toujours dans `js/stickers.js`.
+- **Ajouter des stickers** : directement dans le journal (bouton ⭐ Stickers → *Ajouter une image*, ou *Découper une planche* pour séparer automatiquement une image qui contient plusieurs stickers), ou pour toujours dans `js/stickers.js`.
 - **Ajouter une police** : choisis-la sur [fonts.google.com](https://fonts.google.com), ajoute-la dans le lien `<link href="https://fonts.googleapis.com/...">` de `index.html`, puis ajoute-la dans `POLICES` de `config.js` (ou dans `theme.css`).
 
 Pour modifier un fichier directement sur GitHub : ouvre-le, clique sur le crayon ✏️, modifie, puis **Commit changes**. Le site se met à jour en 1 à 2 minutes.

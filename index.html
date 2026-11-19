@@ -203,10 +203,18 @@
       <h3 id="stTitre">Stickers</h3>
       <button class="icone" id="stFermer" aria-label="Fermer"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
     </div>
-    <p class="aide">Touche un sticker pour le poser sur ta page. Ensuite, fais-le glisser pour le déplacer, et utilise la poignée ↻ pour l'agrandir ou le tourner.</p>
-    <div class="planche" id="planche"></div>
-    <h4 class="st-sous">Mes images</h4>
-    <div class="planche" id="planchePerso"></div>
+    <div id="stChoix">
+      <p class="aide">Touche un sticker pour le poser sur ta page. Ensuite, fais-le glisser pour le déplacer, et utilise la poignée ↻ pour l'agrandir ou le tourner.</p>
+      <div id="planches"></div>
+      <h4 class="st-sous">Mes images</h4>
+      <p class="aide petit">« Découper une planche » : importe une image avec plusieurs stickers sur fond blanc, je les sépare automatiquement.</p>
+      <div class="planche" id="planchePerso"></div>
+    </div>
+    <div id="stDecoupe" hidden>
+      <p class="aide" id="stDecoupeInfo"></p>
+      <div class="planche" id="stDecoupeGrille"></div>
+      <div class="actions"><span class="espace"></span><button class="bouton" id="stDecoupeAnnuler">Annuler</button><button class="bouton plein" id="stDecoupeOk">Ajouter</button></div>
+    </div>
   </div>
 </div>
 
@@ -223,6 +231,7 @@
 
 <script src="js/config.js"></script>
 <script src="js/stickers.js"></script>
+<script src="js/stickers-aquarelle.js"></script>
 <script src="js/storage.js"></script>
 <script src="js/app.js"></script>
 </body>
