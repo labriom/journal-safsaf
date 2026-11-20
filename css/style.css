@@ -303,3 +303,12 @@ body.en-decoration .app::after { content: ""; position: fixed; inset: 0; z-index
   .deco-titre { display: none; }
   .deco-barre .bouton { padding: 0 14px; }
 }
+
+/* Laisser la place au badge « Powered by Netlify » en bas de l'écran du téléphone.
+   Si tu désactives le badge dans Netlify, tu peux supprimer ce bloc. */
+@media (max-width: 820px) {
+  .barre-bas { bottom: calc(64px + env(safe-area-inset-bottom)); }
+  .contenu { padding-bottom: 150px; }
+  .deco-barre { bottom: calc(144px + env(safe-area-inset-bottom)); }
+  .message { bottom: calc(150px + env(safe-area-inset-bottom)); }
+}
